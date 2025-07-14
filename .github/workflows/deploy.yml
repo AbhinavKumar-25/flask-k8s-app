@@ -1,0 +1,30 @@
+name: CI/CD - Deploy to MicroK8s
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.5.4
+        with:
+          ssh-private-key: ${{ secrets.SSH_KEY }}
+
+      - name: Deploy to MicroK8s
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.USERNAME }}@${{ secrets.SERVER_IP }} << 'EOF'
+            cd flask-k8s-app
+            git pull origin main
+            docker build -t localhost:32000/flask-k8s-app:latest .
+            docker push localhost:32000/flask-k8s-app:latest
+            microk8s kubectl apply -f deployment.yaml
+            microk8s kubectl apply -f service.yaml
+          EOF
